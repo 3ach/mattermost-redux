@@ -174,7 +174,7 @@ export function makeGetPostIdsAroundPost(): (state: GlobalState, postId: $ID<Pos
     );
 }
 
-function formatPostInChannel(post: Post, previousPost: Post | undefined | null, index: number, allPosts: IDMappedObjects<Post>, postsInThread: RelationOneToMany<Post, Post>, postIds: Array<$ID<Post>>, currentUser: UserProfile, focusedPostId: $ID<Post>): PostWithFormatData {
+function formatPostInChannel(post: Post, previousPost: Post | undefined | null, index: number, allPosts: IDMappedObjects<Post>, postsInThread: RelationOneToMany<Post, Post>, postIds: Array<$ID<Post>>, currentUser: UserProfile, focusedPostId: $ID<Post>, collapseConsecutivePosts: bool): PostWithFormatData {
     let isFirstReply = false;
     let isLastReply = false;
     let highlight = false;
@@ -209,7 +209,7 @@ function formatPostInChannel(post: Post, previousPost: Post | undefined | null, 
     const postFromWebhook = Boolean(post.props && post.props.from_webhook);
     const prevPostFromWebhook = Boolean(previousPost && previousPost.props && previousPost.props.from_webhook);
     let consecutivePostByUser = false;
-    if (previousPost &&
+    if (previousPost && collapseConsecutivePosts &&
             previousPost.user_id === post.user_id &&
             post.create_at - previousPost.create_at <= Posts.POST_COLLAPSE_TIMEOUT &&
             !postFromWebhook && !prevPostFromWebhook &&
@@ -280,6 +280,9 @@ export function makeGetPostsInChannel(): (state: GlobalState, channelId: $ID<Cha
             const joinLeavePref = myPreferences[getPreferenceKey(Preferences.CATEGORY_ADVANCED_SETTINGS, Preferences.ADVANCED_FILTER_JOIN_LEAVE)];
             const showJoinLeave = joinLeavePref ? joinLeavePref.value !== 'false' : true;
 
+            const collapseConsecutivePostsPref = myPreferences[getPreferenceKey(Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.COLLAPSE_CONSECUTIVE_POSTS)];
+            const collapseConsecutivePosts = collapseConsecutivePostsPref ? collapseConsecutivePostsPref.value !== 'true' : true;
+
             const postIds = numPosts === -1 ? allPostIds : allPostIds.slice(0, numPosts);
 
             for (let i = 0; i < postIds.length; i++) {
@@ -290,7 +293,7 @@ export function makeGetPostsInChannel(): (state: GlobalState, channelId: $ID<Cha
                 }
 
                 const previousPost = allPosts[postIds[i + 1]] || null;
-                posts.push(formatPostInChannel(post, previousPost, i, allPosts, postsInThread, postIds, currentUser, ''));
+                posts.push(formatPostInChannel(post, previousPost, i, allPosts, postsInThread, postIds, currentUser, '', collapseConsecutivePosts));
             }
 
             return posts;
@@ -321,6 +324,9 @@ export function makeGetPostsAroundPost(): (state: GlobalState, postId: $ID<Post>
             const joinLeavePref = myPreferences[getPreferenceKey(Preferences.CATEGORY_ADVANCED_SETTINGS, Preferences.ADVANCED_FILTER_JOIN_LEAVE)];
             const showJoinLeave = joinLeavePref ? joinLeavePref.value !== 'false' : true;
 
+            const collapseConsecutivePostsPref = myPreferences[getPreferenceKey(Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.COLLAPSE_CONSECUTIVE_POSTS)];
+            const collapseConsecutivePosts = collapseConsecutivePostsPref ? collapseConsecutivePostsPref.value !== 'true' : true;
+
             for (let i = 0; i < postIds.length; i++) {
                 const post = allPosts[postIds[i]];
 
@@ -329,7 +335,7 @@ export function makeGetPostsAroundPost(): (state: GlobalState, postId: $ID<Post>
                 }
 
                 const previousPost = allPosts[postIds[i + 1]] || null;
-                const formattedPost = formatPostInChannel(post, previousPost, i, allPosts, postsInThread, postIds, currentUser, focusedPostId);
+                const formattedPost = formatPostInChannel(post, previousPost, i, allPosts, postsInThread, postIds, currentUser, focusedPostId, collapseConsecutivePosts);
 
                 posts.push(formattedPost);
             }
